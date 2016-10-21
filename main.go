@@ -62,7 +62,7 @@ func main() {
 	log.Printf(">> Starting udpproxy, Source at %v, Target at %v...", opts.Source, opts.Target)
 
 	for {
-		b := make([]byte, 1024)
+		b := make([]byte, 10240)
 		n, addr, err := sourceConn.ReadFromUDP(b)
 
 		if err != nil {
