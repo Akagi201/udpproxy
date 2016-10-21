@@ -10,9 +10,9 @@ import (
 )
 
 var opts struct {
-	Source string `long:"source" default:":2203" description:"Source port to listen on"`
-	Target string `long:"target" default:"127.0.0.1:2202" description:"Target address to forward to"`
-	Quiet  bool   `long:"quiet" description:"whether to print logging info or not"`
+	Source string   `long:"source" default:":2203" description:"Source port to listen on"`
+	Target []string `long:"target" description:"Target address to forward to"`
+	Quiet  bool     `long:"quiet" description:"whether to print logging info or not"`
 }
 
 func main() {
@@ -37,10 +37,14 @@ func main() {
 		return
 	}
 
-	targetAddr, err := net.ResolveUDPAddr("udp", opts.Target)
-	if err != nil {
-		log.WithError(err).Fatal("Could not resolve target address:", opts.Target)
-		return
+	var targetAddr []*net.UDPAddr
+	for _, v := range opts.Target {
+		addr, err := net.ResolveUDPAddr("udp", v)
+		if err != nil {
+			log.WithError(err).Fatal("Could not resolve target address:", v)
+			return
+		}
+		targetAddr = append(targetAddr, addr)
 	}
 
 	sourceConn, err := net.ListenUDP("udp", sourceAddr)
@@ -51,13 +55,17 @@ func main() {
 
 	defer sourceConn.Close()
 
-	targetConn, err := net.DialUDP("udp", nil, targetAddr)
-	if err != nil {
-		log.WithError(err).Fatal("Could not connect to target address:", opts.Target)
-		return
-	}
+	var targetConn []*net.UDPConn
+	for _, v := range targetAddr {
+		conn, err := net.DialUDP("udp", nil, v)
+		if err != nil {
+			log.WithError(err).Fatal("Could not connect to target address:", v)
+			return
+		}
 
-	defer targetConn.Close()
+		defer conn.Close()
+		targetConn = append(targetConn, conn)
+	}
 
 	log.Printf(">> Starting udpproxy, Source at %v, Target at %v...", opts.Source, opts.Target)
 
@@ -71,8 +79,10 @@ func main() {
 		}
 
 		log.WithField("addr", addr.String()).WithField("bytes", n).WithField("content", string(b)).Info("Packet received")
-		if _, err := targetConn.Write(b[0:n]); err != nil {
-			log.WithError(err).Warn("Could not forward packet.")
+		for _, v := range targetConn {
+			if _, err := v.Write(b[0:n]); err != nil {
+				log.WithError(err).Warn("Could not forward packet.")
+			}
 		}
 	}
 }
