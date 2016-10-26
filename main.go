@@ -13,6 +13,7 @@ var opts struct {
 	Source string   `long:"source" default:":2203" description:"Source port to listen on"`
 	Target []string `long:"target" description:"Target address to forward to"`
 	Quiet  bool     `long:"quiet" description:"whether to print logging info or not"`
+	Buffer int      `long:"buffer" default:"10240" description:"max buffer size for the socket io"`
 }
 
 func main() {
@@ -22,7 +23,7 @@ func main() {
 			log.Printf("error: %v\n", err.Error())
 			os.Exit(1)
 		} else {
-			log.Printf("%v\n", err.Error())
+			// log.Printf("%v\n", err.Error())
 			os.Exit(0)
 		}
 	}
@@ -70,7 +71,7 @@ func main() {
 	log.Printf(">> Starting udpproxy, Source at %v, Target at %v...", opts.Source, opts.Target)
 
 	for {
-		b := make([]byte, 10240)
+		b := make([]byte, opts.Buffer)
 		n, addr, err := sourceConn.ReadFromUDP(b)
 
 		if err != nil {
